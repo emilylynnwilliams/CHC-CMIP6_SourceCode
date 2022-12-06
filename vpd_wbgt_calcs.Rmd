@@ -9,3 +9,102 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## VPD and WBGT calcs
+
+
+This R-markdown document provides the scripts to calculate vapor pressure deficit (VPD) and maximum wet bulbe globe temperature (WBGTmax) based on minimum and maximum temperatures (Tmin, Tmax) and relative humidity (RH), as in Williams et al. 2023. There are two versions of the script--for vectorized data and for raster data. 
+
+Equations underlying VPD script are from Daly et al. 2015. Equations underlying WBGTmax script are from NOAA and Tuholske et al. 2021. 
+
+Daly, C., J.I. Smith, and K.V. Olson. 2015. Mapping atmospheric moisture climatologies across the conterminous United States. PloS ONE 10(10):e0141140. doi:10.1371/journal.pone.0141140
+
+NOAA: The heat index equation. [Available online at https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml.]
+
+Tuholske, C., Caylor, K., Funk, C., Verdin, A., Sweeney, S., Grace, K., ... & Evans, T. (2021). Global urban population exposure to extreme heat. Proceedings of the National Academy of Sciences, 118(41), e2024792118.
+
+
+
+#### VPD
+
+Calculate VPD using vectors of Tmin, Tmax, and RH. 
+
+```{r vpd_vectorized}
+
+###############################################################################
+# Data: 
+
+tmax <- 25:35 # Your Tmax data, in degrees C. 
+tmin <- 10:20 # Your Tmin data, in degrees C. 
+rh <- 40:50 # Your RH data, in %. 
+
+###############################################################################
+# Calculation:
+
+# Calculate average temperature: 
+t <- (tmax + tmin)/2 # Calculate average temperature. 
+# Calculate saturation vapor pressure (svp), as in Daly et al. 2015: 
+svp <- 0.611 * exp( (17.3*t) / (t + 273.3) ) 
+# Calculate vpd as a function of SVP and RH: 
+vpd = svp * (1 - (rh/100))
+
+# End. 
+
+```
+
+#### WBGTmax
+
+Calculate WBGTmax using vectors of Tmax and RHx. 
+
+```{r wbgt_vectorized}
+
+###############################################################################
+# Data: 
+
+tmax <- 25:35 # Your Tmax data, in degrees C. 
+rh <- 40:50 # Your RHx data, in %. 
+
+###############################################################################
+# Calculation:
+
+# (1): Calculate Heat Index (HI).
+# HI calculation uses t in F, so convert from C:
+tf <- tmax*(9/5) + 32
+
+# The simple formula (Steadman) is used for HI if, when averaged with T, it is < 80.
+# Otherwise, full equation (Rothfusz) is used.
+wbgt_hi_list <- list()
+for (i in 1:length(tf)) {
+  steadman_hi <- 0.5 * (tf[i] + 61 + ( (tf[i] - 68) * 1.2) ) + (0.094*rh[i])
+  # Calculate HI: 
+  hi <- if( ((steadman_hi + tf[i])/2) < 80 ) {
+    # If Steadman averaged with T is < 80, use Steadman:
+    steadman_hi
+  } else {
+    # Else, use Rothfusz equation:
+    -42.379 + 2.04901523*tf[i] + 10.14333127*rh[i] - 0.22475541*tf[i]*rh[i] -
+      0.00683783*tf[i]^2 - 0.05481717*rh[i]^2 + 0.00122874*tf[i]^2*rh[i] +
+      0.00085282*tf[i]*rh[i]^2 - 0.00000199*tf[i]^2*rh[i]^2
+  }
+  # Add/subtract adjustments:
+  hi_adj <- if( tf[i] %in% c(80:112) & rh[i] < 13 ) {
+    # If 80 < T < 112, and RH < 13%, subtract this adjustment:
+    adj1 <- ((13 - rh[i])/4) * sqrt( (17 - abs(tf[i]-95)) / 17) 
+    hi - adj1 
+  } else if ( tf[i] %in% c(80:87) & rh[i] > 85 ) {
+    # If 80 < T < 87, and RH > 85%, add this adjustment:
+    adj2 = ((rh[i]-85)/10) * ((87-tf[i])/5)
+    hi + adj2 
+  } else {
+    # Else, no adjustments needed:
+    hi
+  }
+  # (2) Calculate WBGT:
+  wbgt <- -0.0034*(hi_adj^2) + 0.96*hi_adj - 34
+  output <- data.frame(tmax = tmax[i], rh = rh[i], hi = hi_adj, wbgt = wbgt)
+  wbgt_hi_list[[i]] <- output
+}
+
+wbgt_hi <- do.call('rbind', wbgt_hi_list)
+
+# End. 
+
+```
