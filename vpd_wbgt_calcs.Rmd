@@ -1,0 +1,11 @@
+---
+title: "VPD and WBGT calcs"
+output: html_document
+date: "2022-12-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## VPD and WBGT calcs
