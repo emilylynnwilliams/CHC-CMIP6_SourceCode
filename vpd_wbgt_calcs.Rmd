@@ -108,3 +108,37 @@ wbgt_hi <- do.call('rbind', wbgt_hi_list)
 # End. 
 
 ```
+
+
+#### RH 
+
+Calculate RH using Tmax, Tdew, and pressure.
+
+```{r rh_vectorized}
+
+###############################################################################
+# Data: 
+
+tdew <- rep(18, 6) # Tdew is in C
+ps <- rep(101325,6) # Pressure is in Pascales 
+tmax <- (30:35) + 273.15 #Tmax is in K
+tmin <- (25:30) + 273.15 #Tmin is in K 
+
+###############################################################################
+# Calculation: 
+
+e = 6.112 * exp((17.67 * tdew)/(tdew+ 243.5))  # vapor pressure
+q = (0.622 * e)/((ps/100.) - (0.378 * e))      # here need pressure in mb's so divide by 100.
+p1  = 0.263 * ps * q
+
+p2max = exp( (17.67*(tmax-273.15)) / (tmax - 29.65))  # Tmax in Kelvin
+p2min = exp( (17.67*(tmin-273.15)) / (tmin - 29.65))  # Tmin in Kelvin
+p2 <- (p2min + p2max) / 2
+
+# RH 
+rh = p1 / p2
+
+# End. 
+
+```
+
