@@ -112,7 +112,7 @@ wbgt_hi <- do.call('rbind', wbgt_hi_list)
 
 #### RH 
 
-Calculate RH using Tmax, Tdew, and pressure.
+Calculate RHx and RH using Tmin, Tmax, and Tdew.
 
 ```{r rh_vectorized}
 
